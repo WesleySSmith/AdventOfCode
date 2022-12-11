@@ -20,48 +20,6 @@ Part2(monkeys);
 
 Console.Out.WriteLine($"Time: {sw.ElapsedMilliseconds}ms");
 
-static void Part2(Monkey[] monkeys) {
-checked {
-
-    var modOperand = monkeys.Select(m => m.TestDivisibleBy).Aggregate(1, (v1, v2) => v1 * v2);
-    Console.Out.WriteLine($"modOperand: {modOperand}");
-    for (int round =0; round < 10000; round++) {
-
-        foreach (var monkey in monkeys) {
-
-            foreach (var item in monkey.ItemWorryLevels) {
-                monkey.InspectionCount++;
-                var worryLevel = item;
-                
-                worryLevel = monkey.Operation switch {
-                    Operation.Add => worryLevel + monkey.Operand,
-                    Operation.Multiply => worryLevel * monkey.Operand,
-                    Operation.Square => worryLevel * worryLevel
-                };
-                
-                worryLevel %= modOperand;
-
-                var testResult = worryLevel % monkey.TestDivisibleBy == 0;
-                var monkeyThrowTo = monkeys[testResult switch {
-                    true => monkey.TrueMonkey,
-                    false => monkey.FalseMonkey
-                }];
-                monkeyThrowTo.ItemWorryLevels.Add(worryLevel);
-            }
-            monkey.ItemWorryLevels.Clear();
-        }
-    }
-}
-    
-    Console.Out.WriteLine(string.Join(",", monkeys.Select(m => m.InspectionCount)));
-    var top2 = monkeys.Select(m => m.InspectionCount).OrderByDescending(c => c).Take(2).Select(i => (long)i);
-    
-    
-    var monkeyBusiness = top2.ElementAt(0) * top2.ElementAt(1);
-
-    Console.Out.WriteLine($"Part 2 MonkeyBusiness: {monkeyBusiness}");
-}
-
 
 static void Part1(Monkey[] monkeys) {
 
@@ -96,6 +54,48 @@ static void Part1(Monkey[] monkeys) {
     var monkeyBusiness = top2.ElementAt(0) * top2.ElementAt(1);
 
     Console.Out.WriteLine($"Part 1 MonkeyBusiness: {monkeyBusiness}");
+}
+
+static void Part2(Monkey[] monkeys) {
+    checked {
+
+        var modOperand = monkeys.Select(m => m.TestDivisibleBy).Aggregate(1, (v1, v2) => v1 * v2);
+        Console.Out.WriteLine($"modOperand: {modOperand}");
+        for (int round =0; round < 10000; round++) {
+
+            foreach (var monkey in monkeys) {
+
+                foreach (var item in monkey.ItemWorryLevels) {
+                    monkey.InspectionCount++;
+                    var worryLevel = item;
+                    
+                    worryLevel = monkey.Operation switch {
+                        Operation.Add => worryLevel + monkey.Operand,
+                        Operation.Multiply => worryLevel * monkey.Operand,
+                        Operation.Square => worryLevel * worryLevel
+                    };
+                    
+                    worryLevel %= modOperand;
+
+                    var testResult = worryLevel % monkey.TestDivisibleBy == 0;
+                    var monkeyThrowTo = monkeys[testResult switch {
+                        true => monkey.TrueMonkey,
+                        false => monkey.FalseMonkey
+                    }];
+                    monkeyThrowTo.ItemWorryLevels.Add(worryLevel);
+                }
+                monkey.ItemWorryLevels.Clear();
+            }
+        }
+    }
+    
+    Console.Out.WriteLine(string.Join(",", monkeys.Select(m => m.InspectionCount)));
+    var top2 = monkeys.Select(m => m.InspectionCount).OrderByDescending(c => c).Take(2).Select(i => (long)i);
+    
+    
+    var monkeyBusiness = top2.ElementAt(0) * top2.ElementAt(1);
+
+    Console.Out.WriteLine($"Part 2 MonkeyBusiness: {monkeyBusiness}");
 }
 
 public enum Operation {
