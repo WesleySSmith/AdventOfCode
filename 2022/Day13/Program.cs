@@ -1,5 +1,6 @@
 ﻿#pragma warning disable CS8524
 #pragma warning disable CS8509
+using System.Collections;
 using System.Diagnostics;
 using MoreLinq;
 
@@ -34,15 +35,8 @@ static void Part1(ElementList[][] pairs) {
 
 static void Part2(ElementList[][] pairs) {
 
-    var divider1 = new ElementList();
-    var divider1a = new ElementList();
-    divider1a.Children.Add(new Literal() {Value = 2});
-    divider1.Children.Add(divider1a);
-
-    var divider2 = new ElementList();
-    var divider2a = new ElementList();
-    divider2a.Children.Add(new Literal() {Value = 6});
-    divider2.Children.Add(divider2a);
+    var divider1 = new ElementList() {new ElementList() {new Literal(2)}};
+    var divider2 = new ElementList() {new ElementList() {new Literal(6)}};
 
     var list = pairs.SelectMany(pair => pair).Concat(new [] {divider1, divider2});
 
@@ -55,7 +49,6 @@ static void Part2(ElementList[][] pairs) {
 
 static bool? InOrder(Element l, Element r) {
 
-
     if (l is Literal ll && r is Literal rl) {
         if (ll.Value < rl.Value) {
             return true;
@@ -67,20 +60,20 @@ static bool? InOrder(Element l, Element r) {
     }
 
     if (l is ElementList lell && r is ElementList rell) {
-        for (var child = 0; child < lell.Children.Count; child++) {
-            if (rell.Children.Count < child + 1 )
+        for (var child = 0; child < lell.Count; child++) {
+            if (rell.Count < child + 1 )
             {
                 return false;
             }
 
-            var lel = lell.Children[child];
-            var rel = rell.Children[child];
+            var lel = lell[child];
+            var rel = rell[child];
             var inOrder = InOrder(lel, rel);
             if (inOrder.HasValue) {
                 return inOrder.Value;
             }
         }
-        if (rell.Children.Count > lell.Children.Count) {
+        if (rell.Count > lell.Count) {
             return true;
         }
         return null;
@@ -88,13 +81,13 @@ static bool? InOrder(Element l, Element r) {
 
     if (l is Literal ll2) {
         var replacementList = new ElementList();
-        replacementList.Children.Add(ll2);
+        replacementList.Add(ll2);
         return InOrder(replacementList, r);
     }
 
     if (r is Literal rl2) {
         var replacementList = new ElementList();
-        replacementList.Children.Add(rl2);
+        replacementList.Add(rl2);
         return InOrder(l, replacementList);
     }
     return null;
@@ -110,18 +103,17 @@ static (ElementList, int) Parse(string s, int pos) {
 
     while (pos < s.Length) {
         if (s[pos] == '[') {
-
             (var list, pos) = Parse(s, pos+1);
-            root.Children.Add(list);
+            root.Add(list);
         }
         else if (s[pos] == ']') {
             return (root, pos + 1);
         } else if (s[pos] >= '0' && s[pos] <= '9') {
             var digitCount = 1;
-            while (s[pos+digitCount] >= '0' && s[pos+digitCount] <= '9') {
+            while (Char.IsAsciiDigit(s[pos+digitCount])) {
                 digitCount++;
             }
-            root.Children.Add(new Literal() {Value = int.Parse(s[pos..(pos+digitCount)])});
+            root.Add(new Literal(int.Parse(s[pos..(pos+digitCount)])));
             pos += digitCount;
         }  else if (s[pos] == ',') {
             pos++;
@@ -133,10 +125,26 @@ static (ElementList, int) Parse(string s, int pos) {
 public class Element {
 }
 
-public class ElementList : Element {
-    public List<Element> Children {get;} = new List<Element>();
+public class ElementList : Element, IEnumerable {
+    private List<Element> Children {get;} = new List<Element>();
+
+    public IEnumerator GetEnumerator()
+    {
+        return Children.GetEnumerator();
+    }
+
+    public void Add(Element e) {
+        Children.Add(e);
+    }
+
+    public int Count => Children.Count;
+
+    public Element this[int i] => Children[i];
 }
 
 public class Literal : Element {
+    public Literal(int v) {
+        Value = v;
+    }
     public int Value {get; init;}
 }
