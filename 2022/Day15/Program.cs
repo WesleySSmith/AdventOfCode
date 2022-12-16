@@ -18,7 +18,6 @@ Part2(sensorDatas);
 
 Console.Out.WriteLine($"Time: {sw.ElapsedMilliseconds}ms");
 
-
 void Part1(SensorData[] sensorDatas) {
 
    int row = sample ? 10 : 2_000_000;
@@ -32,7 +31,6 @@ void Part1(SensorData[] sensorDatas) {
 
     Console.WriteLine($"Part 1 Count: {beaconsNotPresent}");
 }
-
 
 void Part2(SensorData[] sensorDatas) {
 
