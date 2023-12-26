@@ -14,7 +14,7 @@ Console.Out.WriteLine($"Read {lines.Length} lines from {lines.First()} to {lines
 Stopwatch sw = Stopwatch.StartNew();
 
 
-Part1(lines);
+//Part1(lines);
 Part2(lines);
 
 Console.Out.WriteLine($"Finished in {sw.ElapsedMilliseconds}ms");
@@ -22,90 +22,153 @@ Console.Out.WriteLine($"Finished in {sw.ElapsedMilliseconds}ms");
 
 void Part1(string[] lines)
 {
-    var games = lines.Select(l => ParseGame(l));
-
-    // 12 red cubes, 13 green cubes, and 14 blue cubes
-
-
-   var score =  games.Select(g => (g.Id, g.Draws.Aggregate(new Draw(), (accum, draw) => {
-        return new Draw {
-            Red = int.Max(accum.Red, draw.Red),
-            Green = int.Max(accum.Green, draw.Green),
-            Blue = int.Max(accum.Blue, draw.Blue),
-        };
-    })))
-    .Where(g => g.Item2.Red <= 12 && g.Item2.Green <= 13 && g.Item2.Blue <= 14)
-    .Sum(i => i.Id);
-
-    Console.Out.WriteLine($"Score is {score}");
+   
+    var seeds = ParseSeeds(lines[0]);
+    var maps = new List<Map>(7);
+    var index = 2;
+    for (int ii = 0; ii < 7; ii++) {
+        var map = Map.FromStrings(lines, ref index);
+        maps.Add(map);
+    }
+    
+    var vals = seeds.Select(seed => {
+        long value = seed;
+        foreach (Map map in maps) {
+            value = map.MapSourceToDest(value);
+        }
+        return value;
+    })
+    .ToList();
+    var minVal = vals.Min();
+    
+    Console.Out.WriteLine($"Lowest location is {minVal}");
 
 }
 
 void Part2(string[] lines)
 {
     
-    var games = lines.Select(l => ParseGame(l));
-
-    // For each game, find minimum number of colors of each cube that could have been in bag
-    // Compute "power": R*G*B
-    // Sum powers for all games
-
-    var sumPowers = games.Select(g => g.Draws.Aggregate(new Draw(), (accum, draw) => {
-        return new Draw {
-            Red = int.Max(accum.Red, draw.Red),
-            Green = int.Max(accum.Green, draw.Green),
-            Blue = int.Max(accum.Blue, draw.Blue),
-        };
-    }))
-    .Select(g => g.Red * g.Green * g.Blue)
-    .Sum();
-
-    Console.Out.WriteLine($"Sum of powers is {sumPowers}");
-
-
-
-
-}
-
-
-Game ParseGame(string line)
-{
-   // Game 1: 3 blue, 4 red; 1 red, 2 green, 6 blue; 2 green
-
-   var parts = line.Split(":");
-   var gameId = int.Parse(parts[0].Split(" ")[1]);
-
-   var draws = parts[1].Split(";");
+    var seedRanges = ParseSeeds(lines[0]).Batch(2).Select(pair => new SeedRange {RangeStart = pair.ElementAt(0), RangeLen = pair.ElementAt(1)});
    
-   var parsedDraws = draws.Select(draw =>  {
-        var parts2 = draw.Split(",").Select(p => {
-            var parts3 = p.Trim().Split(" ");
 
-            return new {Color= parts3[1], Count= int.Parse(parts3[0])};
-        });
+   var maps = new List<Map>(7);
+   var reversedMaps = new List<Map>(7);
+    var index = 2;
+    for (int ii = 0; ii < 7; ii++) {
+        var map = Map.FromStrings(lines, ref index);
+        maps.Add(map);
+        reversedMaps.Add(map);
+    }
+    
+    reversedMaps.Reverse();
+    for (long ii = 0; ii < long.MaxValue; ii++) {
+        //Console.WriteLine($"Reversing from {ii}");
+        long value = ii;
+         foreach (Map map in reversedMaps) {
+            value = map.MapDestToSource(value);
+            //Console.WriteLine(value);
+        }
 
-        var red = parts2.SingleOrDefault(p => p.Color == "red")?.Count ?? 0;
-        var blue = parts2.SingleOrDefault(p => p.Color == "blue")?.Count ?? 0;
-        var green = parts2.SingleOrDefault(p => p.Color == "green")?.Count ?? 0;
+// Validation
+/*
+        Console.WriteLine($"Forward from {value}");
+        long valueX = value;
+        foreach (Map map in maps) {
+            valueX = map.MapSourceToDest(valueX);
+            Console.WriteLine(valueX);
 
-        return new Draw {
-            Red = red,
-            Blue = blue,
-            Green = green
+        }
+
+        if (valueX != ii) {
+            throw new Exception($"{valueX} != {ii}");
+        }
+*/
+        if (seedRanges.Any(sr => value >= sr.RangeStart && value < sr.RangeStart + sr.RangeLen)) {
+            Console.Out.WriteLine($"Best location is {ii}");
+            break;
+        }
+    }
+
+}
+
+List<long> ParseSeeds(string line) {
+    return line[7..].Split(" ").Select(long.Parse).ToList();
+}
+public record Map {
+    public string Name;
+    public List<MapSegment> Segments;
+
+    public long MapSourceToDest(long source) {
+        foreach (var segment in Segments) {
+            var dest = segment.MapSourceToDest(source);
+            if (dest.HasValue) {
+                return dest.Value;
+            }
+        }
+        return source;
+    }
+
+    public long MapDestToSource(long dest) {
+        foreach (var segment in Segments) {
+            var source = segment.MapDestToSource(dest);
+            if (source.HasValue) {
+                return source.Value;
+            }
+        }
+        return dest;
+    }
+
+    public static Map FromStrings(string[] lines, ref int index) {
+        var name = lines[index];
+        index++;
+        var segments = new List<MapSegment>();
+        while (index < lines.Length && !lines[index].Contains(":")) {
+            var line = lines[index];
+
+            if (line.Length > 0) {
+                segments.Add(MapSegment.FromString(line));
+            }
+            index++;
+        }
+        return new Map {
+            Name = name,
+            Segments = segments
         };
-    });
-
-    return new Game {Id = gameId, Draws = parsedDraws.ToList()};
+    }
 }
 
-record Game {
-    public int Id;
-    public List<Draw> Draws;
 
+public record MapSegment {
+    public long DestRangeStart;
+    public long SourceRangeStart;
+    public long RangeLen;
+
+    public long? MapSourceToDest(long source) {
+        if (source >= SourceRangeStart && source < SourceRangeStart + RangeLen) {
+            return (source - SourceRangeStart) + DestRangeStart;
+        }
+        return null;
+    }
+
+
+    public long? MapDestToSource(long dest) {
+        if (dest >= DestRangeStart && dest < DestRangeStart + RangeLen) {
+            return (dest - DestRangeStart) + SourceRangeStart;
+        }
+        return null;
+    }
+
+    public static MapSegment FromString(string s) {
+        var nums = s.Split(" ").Select(long.Parse).ToArray();
+        return new MapSegment {
+            DestRangeStart = nums[0],
+            SourceRangeStart = nums[1],
+            RangeLen = nums[2]
+        };
+    }
 }
 
-record Draw {
-    public int Red;
-    public int Blue;
-    public int Green;
+public record SeedRange {
+    public long RangeStart;
+    public long RangeLen;
 }

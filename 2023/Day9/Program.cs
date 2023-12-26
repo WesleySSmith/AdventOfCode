@@ -14,98 +14,93 @@ Console.Out.WriteLine($"Read {lines.Length} lines from {lines.First()} to {lines
 Stopwatch sw = Stopwatch.StartNew();
 
 
-Part1(lines);
+//Part1(lines);
 Part2(lines);
 
 Console.Out.WriteLine($"Finished in {sw.ElapsedMilliseconds}ms");
 
 
-void Part1(string[] lines)
-{
-    var games = lines.Select(l => ParseGame(l));
+void Part1(string[] lines) {
+   long sum = 0;
+   foreach (var line in lines) {
+        var nums = line.Split(" ").Select(int.Parse).ToArray();
+        var a = new int[nums.Length,nums.Length + 1];
+        for (int c = 0; c < nums.Length;c++) {
+            a[0, c] = nums[c];
+        }
 
-    // 12 red cubes, 13 green cubes, and 14 blue cubes
+        int r;
+        for (r = 1; r < nums.Length; r++) {
+            bool allZero = true;
+            for (int c = 0; c < nums.Length - r; c++) {
+                var diff = a[r-1,c+1] - a[r-1, c];
+                a[r, c] = diff;
+                if (diff != 0) {
+                    allZero = false;
+                }
 
+            }
+            if (allZero) {
+                break;
+            }
+        }
 
-   var score =  games.Select(g => (g.Id, g.Draws.Aggregate(new Draw(), (accum, draw) => {
-        return new Draw {
-            Red = int.Max(accum.Red, draw.Red),
-            Green = int.Max(accum.Green, draw.Green),
-            Blue = int.Max(accum.Blue, draw.Blue),
-        };
-    })))
-    .Where(g => g.Item2.Red <= 12 && g.Item2.Green <= 13 && g.Item2.Blue <= 14)
-    .Sum(i => i.Id);
+        for (var r2 = r -1; r2 >= 0; r2--) {
+            var destCol = nums.Length - r2;
+            a[r2, destCol] = a[r2+1, destCol-1] + a[r2, destCol-1];
+        }
 
-    Console.Out.WriteLine($"Score is {score}");
+        var nextSeq = a[0, a.GetLength(1)-1];
+        Console.WriteLine($"{nextSeq}");
+        sum += nextSeq;
+   }
+    Console.Out.WriteLine($"Sum is {sum}");
 
 }
 
 void Part2(string[] lines)
 {
-    
-    var games = lines.Select(l => ParseGame(l));
+    long sum = 0;
+    foreach (var line in lines) {
+        var nums = line.Split(" ").Select(int.Parse).ToArray();
+        var a = new int[nums.Length,nums.Length + 1];
+        for (int c = 0; c < nums.Length;c++) {
+            a[0, c] = nums[c];
+        }
 
-    // For each game, find minimum number of colors of each cube that could have been in bag
-    // Compute "power": R*G*B
-    // Sum powers for all games
+        int r;
+        for (r = 1; r < nums.Length; r++) {
+            bool allZero = true;
+            for (int c = 0; c < nums.Length - r; c++) {
+                var diff = a[r-1,c+1] - a[r-1, c];
+                a[r, c] = diff;
+                if (diff != 0) {
+                    allZero = false;
+                }
 
-    var sumPowers = games.Select(g => g.Draws.Aggregate(new Draw(), (accum, draw) => {
-        return new Draw {
-            Red = int.Max(accum.Red, draw.Red),
-            Green = int.Max(accum.Green, draw.Green),
-            Blue = int.Max(accum.Blue, draw.Blue),
-        };
-    }))
-    .Select(g => g.Red * g.Green * g.Blue)
-    .Sum();
+            }
+            if (allZero) {
+                break;
+            }
+        }
 
-    Console.Out.WriteLine($"Sum of powers is {sumPowers}");
+        for (var r2 = r - 1; r2 >= 0; r2--) {
+            var destCol = nums.Length;
+            a[r2, destCol] = a[r2, 0] - a[r2+1, destCol];
+        }
 
-
-
-
-}
-
-
-Game ParseGame(string line)
-{
-   // Game 1: 3 blue, 4 red; 1 red, 2 green, 6 blue; 2 green
-
-   var parts = line.Split(":");
-   var gameId = int.Parse(parts[0].Split(" ")[1]);
-
-   var draws = parts[1].Split(";");
+        var prevSeq = a[0, a.GetLength(1)-1];
+        Console.WriteLine($"{prevSeq}");
+        sum += prevSeq;
+   }
+    Console.Out.WriteLine($"Sum is {sum}");  
    
-   var parsedDraws = draws.Select(draw =>  {
-        var parts2 = draw.Split(",").Select(p => {
-            var parts3 = p.Trim().Split(" ");
-
-            return new {Color= parts3[1], Count= int.Parse(parts3[0])};
-        });
-
-        var red = parts2.SingleOrDefault(p => p.Color == "red")?.Count ?? 0;
-        var blue = parts2.SingleOrDefault(p => p.Color == "blue")?.Count ?? 0;
-        var green = parts2.SingleOrDefault(p => p.Color == "green")?.Count ?? 0;
-
-        return new Draw {
-            Red = red,
-            Blue = blue,
-            Green = green
-        };
-    });
-
-    return new Game {Id = gameId, Draws = parsedDraws.ToList()};
 }
 
-record Game {
-    public int Id;
-    public List<Draw> Draws;
-
-}
-
-record Draw {
-    public int Red;
-    public int Blue;
-    public int Green;
-}
+/*
+10  13  16  21  30  45     5  
+3   3   5   9  15           5   
+0   2   4   6               -2   
+2   2   2                   2   
+0   0                       0   
+*/

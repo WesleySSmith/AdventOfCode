@@ -14,7 +14,7 @@ Console.Out.WriteLine($"Read {lines.Length} lines from {lines.First()} to {lines
 Stopwatch sw = Stopwatch.StartNew();
 
 
-Part1(lines);
+//Part1(lines);
 Part2(lines);
 
 Console.Out.WriteLine($"Finished in {sw.ElapsedMilliseconds}ms");
@@ -22,90 +22,84 @@ Console.Out.WriteLine($"Finished in {sw.ElapsedMilliseconds}ms");
 
 void Part1(string[] lines)
 {
-    var games = lines.Select(l => ParseGame(l));
+    var instructions = lines[0];
 
-    // 12 red cubes, 13 green cubes, and 14 blue cubes
+    var nodeDict = lines[2..]
+    .Select(l => (Key: l[0..3], Value: new Node {Left = l[7..10], Right = l[12..15]}))
+    .ToDictionary(v => v.Key, v => v.Value);
 
+    int instructionPtr = 0;
+    string current = "AAA";
+    int count = 1;
+    while(true) {
+        var node = nodeDict[current];
+        current = instructions[instructionPtr] switch {'R' => node.Right, 'L' => node.Left};
+        if (current == "ZZZ") {
+            break;
+        }
+        instructionPtr = (instructionPtr + 1) % instructions.Length;
+        count++;
+    }
 
-   var score =  games.Select(g => (g.Id, g.Draws.Aggregate(new Draw(), (accum, draw) => {
-        return new Draw {
-            Red = int.Max(accum.Red, draw.Red),
-            Green = int.Max(accum.Green, draw.Green),
-            Blue = int.Max(accum.Blue, draw.Blue),
-        };
-    })))
-    .Where(g => g.Item2.Red <= 12 && g.Item2.Green <= 13 && g.Item2.Blue <= 14)
-    .Sum(i => i.Id);
-
-    Console.Out.WriteLine($"Score is {score}");
+    Console.Out.WriteLine($"Count is {count}");
 
 }
 
 void Part2(string[] lines)
 {
+    var instructions = lines[0];
+
+    var nodeDict = lines[2..]
+    .Select(l => (Key: l[0..3], Value: new Node {Left = l[7..10], Right = l[12..15]}))
+    .ToDictionary(v => v.Key, v => v.Value);
     
-    var games = lines.Select(l => ParseGame(l));
+    var currents = nodeDict.Keys.Where(k => k.EndsWith('A')).ToArray();
 
-    // For each game, find minimum number of colors of each cube that could have been in bag
-    // Compute "power": R*G*B
-    // Sum powers for all games
+    Console.WriteLine($"currents.Length {currents.Length}");
+    var loopLengths = new List<long>();
+    for(int ii = 0; ii < currents.Length; ii++) {
+        int instructionPtr = 0;
+        var current = currents[ii]; 
+        int count = 1;
+        while(true) {
+            var node = nodeDict[current];
+            current = instructions[instructionPtr] switch {'R' => node.Right, 'L' => node.Left};
 
-    var sumPowers = games.Select(g => g.Draws.Aggregate(new Draw(), (accum, draw) => {
-        return new Draw {
-            Red = int.Max(accum.Red, draw.Red),
-            Green = int.Max(accum.Green, draw.Green),
-            Blue = int.Max(accum.Blue, draw.Blue),
-        };
-    }))
-    .Select(g => g.Red * g.Green * g.Blue)
-    .Sum();
+            if (current.EndsWith('Z')) {
+                Console.WriteLine($"Loop {ii} is at {current} at instruction {instructionPtr} at count {count}");
+                loopLengths.Add(count);
+                break;
+            }
 
-    Console.Out.WriteLine($"Sum of powers is {sumPowers}");
+            instructionPtr = (instructionPtr + 1) % instructions.Length;
+            count++;
+        }
+    }
+    
+    long lcm = LCM(loopLengths.ToArray());
 
-
-
-
-}
-
-
-Game ParseGame(string line)
-{
-   // Game 1: 3 blue, 4 red; 1 red, 2 green, 6 blue; 2 green
-
-   var parts = line.Split(":");
-   var gameId = int.Parse(parts[0].Split(" ")[1]);
-
-   var draws = parts[1].Split(";");
+    Console.Out.WriteLine($"LCM is {lcm}");
    
-   var parsedDraws = draws.Select(draw =>  {
-        var parts2 = draw.Split(",").Select(p => {
-            var parts3 = p.Trim().Split(" ");
+ }
 
-            return new {Color= parts3[1], Count= int.Parse(parts3[0])};
-        });
-
-        var red = parts2.SingleOrDefault(p => p.Color == "red")?.Count ?? 0;
-        var blue = parts2.SingleOrDefault(p => p.Color == "blue")?.Count ?? 0;
-        var green = parts2.SingleOrDefault(p => p.Color == "green")?.Count ?? 0;
-
-        return new Draw {
-            Red = red,
-            Blue = blue,
-            Green = green
-        };
-    });
-
-    return new Game {Id = gameId, Draws = parsedDraws.ToList()};
+ static long LCM(long[] numbers)
+{
+    return numbers.Aggregate(lcm);
+}
+static long lcm(long a, long b)
+{
+    return Math.Abs(a * b) / GCD(a, b);
+}
+static long GCD(long a, long b)
+{
+    return b == 0 ? a : GCD(b, a % b);
 }
 
-record Game {
-    public int Id;
-    public List<Draw> Draws;
+ record Node {
+    public string Left;
+    public string Right;
+ }
 
-}
 
-record Draw {
-    public int Red;
-    public int Blue;
-    public int Green;
-}
+ 
+

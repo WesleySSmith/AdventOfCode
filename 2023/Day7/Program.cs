@@ -2,6 +2,8 @@
 #pragma warning disable CS8509
 using System.Collections;
 using System.Diagnostics;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using MoreLinq;
 
 
@@ -14,7 +16,7 @@ Console.Out.WriteLine($"Read {lines.Length} lines from {lines.First()} to {lines
 Stopwatch sw = Stopwatch.StartNew();
 
 
-Part1(lines);
+//Part1(lines);
 Part2(lines);
 
 Console.Out.WriteLine($"Finished in {sw.ElapsedMilliseconds}ms");
@@ -22,90 +24,239 @@ Console.Out.WriteLine($"Finished in {sw.ElapsedMilliseconds}ms");
 
 void Part1(string[] lines)
 {
-    var games = lines.Select(l => ParseGame(l));
+    var hands = lines.Select(l => l.Split(" ")).Select(x => (Hand: x[0], Bid: long.Parse(x[1])));
+    var typeComparer = new TypeComparer1();
+    var highComparer = new HighComparer1();
+    var orderedHands = hands.OrderByDescending(x => x.Hand, typeComparer).ThenByDescending(x => x.Hand, highComparer);
 
-    // 12 red cubes, 13 green cubes, and 14 blue cubes
-
-
-   var score =  games.Select(g => (g.Id, g.Draws.Aggregate(new Draw(), (accum, draw) => {
-        return new Draw {
-            Red = int.Max(accum.Red, draw.Red),
-            Green = int.Max(accum.Green, draw.Green),
-            Blue = int.Max(accum.Blue, draw.Blue),
-        };
-    })))
-    .Where(g => g.Item2.Red <= 12 && g.Item2.Green <= 13 && g.Item2.Blue <= 14)
-    .Sum(i => i.Id);
+    var score = orderedHands.Zip(Enumerable.Range(1, orderedHands.Count()).Reverse()).Sum(e => e.Second * e.First.Bid);
 
     Console.Out.WriteLine($"Score is {score}");
 
 }
 
+
+
 void Part2(string[] lines)
 {
-    
-    var games = lines.Select(l => ParseGame(l));
+    var hands = lines.Select(l => l.Split(" ")).Select(x => (Hand: x[0], Bid: long.Parse(x[1])));
+    var typeComparer = new TypeComparer2();
+    var highComparer = new HighComparer2();
+    var orderedHands = hands.OrderByDescending(x => x.Hand, typeComparer).ThenByDescending(x => x.Hand, highComparer);
 
-    // For each game, find minimum number of colors of each cube that could have been in bag
-    // Compute "power": R*G*B
-    // Sum powers for all games
+    var score = orderedHands.Zip(Enumerable.Range(1, orderedHands.Count()).Reverse()).Sum(e => e.Second * e.First.Bid);
 
-    var sumPowers = games.Select(g => g.Draws.Aggregate(new Draw(), (accum, draw) => {
-        return new Draw {
-            Red = int.Max(accum.Red, draw.Red),
-            Green = int.Max(accum.Green, draw.Green),
-            Blue = int.Max(accum.Blue, draw.Blue),
+    Console.Out.WriteLine($"Score is {score}");
+}
+public class HighComparer1 : IComparer<string> {
+    public int Compare(string a, string b)
+    {
+        for (int ii = 0; ii < a.Length; ii++) {
+            var scoreA = Score(a[ii]);
+            var scoreB = Score(b[ii]);
+
+            if (scoreA > scoreB) return 1;
+            if (scoreA < scoreB) return -1;
+        }
+        return 0;
+    }
+
+    public static int Score(char card) {
+        return card switch {
+            'A' => 14,
+            'K' => 13,
+            'Q' => 12,
+            'J' => 11,
+            'T' => 10,
+            _ => card - '0'
         };
-    }))
-    .Select(g => g.Red * g.Green * g.Blue)
-    .Sum();
+    }
+}
+public class TypeComparer1 : IComparer<string> {
+    public int Compare(string a, string b)
+    {
+        var scoreA = Score(a);
+        var scoreB = Score(b);
 
-    Console.Out.WriteLine($"Sum of powers is {sumPowers}");
+        if (scoreA == scoreB) return 0;
+        if (scoreA > scoreB) return 1;
+        return -1;
 
+    }
 
+    public static int Score(string hand) {
+        var groups = hand.GroupBy(c => c);
 
+        // 5 of a kind
+        if (groups.Count() == 1 && groups.Single().Count() == 5) {
+            return 7;
+        }
 
+        // 4 of a kind
+        if (groups.Count() ==2 && groups.Any(g => g.Count() == 4)) {
+            return 6;
+        }
+
+        //Full house
+        if (groups.Count() ==2 && groups.Any(g => g.Count() == 3)) {
+            return 5;
+        }
+
+        // Three of a kind
+        if (groups.Count() ==3 && groups.Any(g => g.Count() == 3)) {
+            return 4;
+        }
+
+        // Two pair
+        if (groups.Count() == 3) {
+            var groupsOrderedByCount = groups.OrderByDescending(g => g.Count());
+            if (groupsOrderedByCount.ElementAt(0).Count() == 2
+            && groupsOrderedByCount.ElementAt(1).Count() == 2) {
+                return 3;
+            }
+        } 
+
+        // One pair
+        if (groups.Count() == 4 && groups.Any(g => g.Count() == 2)) {
+            return 2;
+        }
+
+        // High card
+        if (groups.Count() == 5) {
+            return 1;
+        }
+        throw new Exception("Bad logic in Score");
+
+    }
 }
 
 
-Game ParseGame(string line)
-{
-   // Game 1: 3 blue, 4 red; 1 red, 2 green, 6 blue; 2 green
 
-   var parts = line.Split(":");
-   var gameId = int.Parse(parts[0].Split(" ")[1]);
 
-   var draws = parts[1].Split(";");
-   
-   var parsedDraws = draws.Select(draw =>  {
-        var parts2 = draw.Split(",").Select(p => {
-            var parts3 = p.Trim().Split(" ");
 
-            return new {Color= parts3[1], Count= int.Parse(parts3[0])};
-        });
+public class HighComparer2 : IComparer<string> {
+    public int Compare(string a, string b)
+    {
+        for (int ii = 0; ii < a.Length; ii++) {
+            var scoreA = Score(a[ii]);
+            var scoreB = Score(b[ii]);
 
-        var red = parts2.SingleOrDefault(p => p.Color == "red")?.Count ?? 0;
-        var blue = parts2.SingleOrDefault(p => p.Color == "blue")?.Count ?? 0;
-        var green = parts2.SingleOrDefault(p => p.Color == "green")?.Count ?? 0;
+            if (scoreA > scoreB) return 1;
+            if (scoreA < scoreB) return -1;
+        }
+        return 0;
+    }
 
-        return new Draw {
-            Red = red,
-            Blue = blue,
-            Green = green
+    public static int Score(char card) {
+        return card switch {
+            'A' => 14,
+            'K' => 13,
+            'Q' => 12,
+            'J' => 1,
+            'T' => 10,
+            _ => card - '0'
         };
-    });
+    }
+}
+public class TypeComparer2 : IComparer<string> {
+    public int Compare(string a, string b)
+    {
+        var scoreA = Score(a);
+        var scoreB = Score(b);
 
-    return new Game {Id = gameId, Draws = parsedDraws.ToList()};
+        if (scoreA == scoreB) return 0;
+        if (scoreA > scoreB) return 1;
+        return -1;
+
+    }
+
+    public static int Score(string hand) {
+        var groups = hand.GroupBy(c => c);
+
+        var jokerGroup = groups.SingleOrDefault(g => g.Key == 'J');
+        var nonJokerGroups = groups.Where(g => g.Key != 'J');
+
+        // 5 of a kind
+        if (groups.Count() == 1) {
+            return 7;
+        }
+
+        if (groups.Count() == 2 && jokerGroup != null) { 
+            return 7;
+        }
+
+        // 4 of a kind
+        if (groups.Count() == 2 && groups.Any(g => g.Count() == 4)) {
+            return 6;
+        }
+
+        if (groups.Count() == 3 && jokerGroup != null) {
+            var groupsOrderedByCount = nonJokerGroups.OrderByDescending(g => g.Count());
+            if (groupsOrderedByCount.First().Count() + jokerGroup.Count() == 4) {
+                return 6;
+            }
+        }
+
+        //Full house
+        if (groups.Count() == 2 && groups.Any(g => g.Count() == 3)) {
+            return 5;
+        }
+
+        if (groups.Count() == 3 && jokerGroup != null) {
+            var groupsOrderedByCount = nonJokerGroups.OrderByDescending(g => g.Count());
+            if (groupsOrderedByCount.First().Count() + jokerGroup.Count() == 3) {
+                return 5;
+            }
+        }
+
+        // Three of a kind
+        if (groups.Count() == 3 && groups.Any(g => g.Count() == 3)) {
+            return 4;
+        }
+
+        if (groups.Count() == 4 && jokerGroup != null) {
+            var groupsOrderedByCount = nonJokerGroups.OrderByDescending(g => g.Count());
+            if (groupsOrderedByCount.First().Count() + jokerGroup.Count() == 3) {
+                return 4;
+            }
+        }
+
+
+        // Two pair
+        if (groups.Count() == 3) {
+            var groupsOrderedByCount = groups.OrderByDescending(g => g.Count());
+            if (groupsOrderedByCount.ElementAt(0).Count() == 2
+            && groupsOrderedByCount.ElementAt(1).Count() == 2) {
+                return 3;
+            }
+        } 
+
+         if (groups.Count() == 4 && jokerGroup != null && jokerGroup.Count() == 1) {
+            var groupsOrderedByCount = nonJokerGroups.OrderByDescending(g => g.Count());
+            if (groupsOrderedByCount.ElementAt(0).Count() == 2
+            && groupsOrderedByCount.ElementAt(1).Count() == 1) {
+                return 3;
+            }
+        } 
+
+
+        // One pair
+        if (groups.Count() == 4 && groups.Any(g => g.Count() == 2)) {
+            return 2;
+        }
+
+        // One pair
+        if (groups.Count() == 5 && jokerGroup != null && jokerGroup.Count() == 1) {
+            return 2;
+        }
+
+        // High card
+        if (groups.Count() == 5) {
+            return 1;
+        }
+        throw new Exception("Bad logic in Score");
+
+    }
 }
 
-record Game {
-    public int Id;
-    public List<Draw> Draws;
-
-}
-
-record Draw {
-    public int Red;
-    public int Blue;
-    public int Green;
-}
+// 249804174 Too low
