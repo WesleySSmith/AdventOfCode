@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+  <CheckForOverflowUnderflow>true</CheckForOverflowUnderflow>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net7.0</TargetFramework>
+    <ImplicitUsings>true</ImplicitUsings>
+  </PropertyGroup>
+<ItemGroup>
+    <PackageReference Include="MoreLinq" Version="3.3.2" />
+  </ItemGroup>
+</Project>
