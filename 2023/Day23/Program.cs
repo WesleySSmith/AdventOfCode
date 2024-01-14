@@ -7,7 +7,7 @@ using System.Diagnostics;
 using MoreLinq;
 
 
-bool sample = true;
+bool sample = false;
 
 
 string[] lines = File.ReadAllLines(sample ? "sample.txt" : "input.txt");
@@ -76,10 +76,10 @@ void Part2(char[][] map)
 
     PrintNodeList(start, goal, nodeDict);
 
-    var maxPath = MaxPath2(start, goal, new HashSet<Node2>(), new List<(Node2,int)>());
+    var maxPath = MaxPath2(start, goal, new HashSet<Node2>());
     var maxLen = maxPath.MaxPath -1;
     Console.Out.WriteLine($"MaxPath: {maxLen}");
-    Console.Out.WriteLine(string.Join("\n", maxPath.VisitedNodeList.Select(n => n.Node.Point + " => " + n.Len)));
+    Console.Out.WriteLine(string.Join("\n", maxPath.VisitedNodeList.AsEnumerable().Reverse().Select(n => n.Node.Point + " => " + n.Len + " = " + n.Total )));
 
 }
 
@@ -101,35 +101,51 @@ int MaxPath(Node root, Node goal) {
     return root.Len + longestChild;
 }
 
-(int MaxPath, List<(Node2 Node, int Len)> VisitedNodeList) MaxPath2(Node2 root, Node2 goal, HashSet<Node2> visitedNodes, List<(Node2 Node, int Len)> visitedNodeList) {
+(int MaxPath, List<(Node2 Node, int Len, int Total)> VisitedNodeList) MaxPath2(Node2 root, Node2 goal, HashSet<Node2> visitedNodes) {
 
     
     if (root == goal) {
-        return (0, visitedNodeList);
+        return (0, new List<(Node2 Node, int Len, int Total)>());
     } 
 
     var visitedNodesCopy = new HashSet<Node2>(visitedNodes);
     visitedNodesCopy.Add(root);
-    var visitedNodesListCopy = new List<(Node2 Node, int Len)>(visitedNodeList);
-    visitedNodesListCopy.Add((root, 0));
+    int maxLength = -1;
 
-    int maxLength = 0;
-    List<(Node2 Node, int Len)> listForMaxPath = null;
+    List<(Node2 Node, int Len, int Total)> bestPath = null;
+    int bestWeight = -1;
+
     foreach (var neighbor in root.Neighbors) {
         if (!visitedNodes.Contains(neighbor.Node)) {
-            var result = MaxPath2(neighbor.Node, goal, visitedNodesCopy, visitedNodesListCopy);
+            var result = MaxPath2(neighbor.Node, goal, visitedNodesCopy);
+            if (result.MaxPath < 0) {
+                // Didn't get to goal
+                continue;
+            }
             var possibleLength = result.MaxPath + neighbor.Weight;
+           
             if (possibleLength > maxLength) {
                 maxLength = possibleLength;
-                listForMaxPath = result.VisitedNodeList;
+                bestPath = result.VisitedNodeList;
+                bestWeight = neighbor.Weight;
             }
         }
     }
 
+   
+
     if (MaxPath2Count++ % 1_000_000 == 0) {
         Console.WriteLine($"{MaxPath2Count}: {maxLength}");
     }
-    return (maxLength, listForMaxPath);
+
+
+    if (maxLength == -1) {
+        // Dead end
+        return (-1, null);
+    }
+
+    bestPath.Add((root, bestWeight, maxLength));
+    return (maxLength, bestPath);
 }
 
 Node ExploreMap(char[][] map, int row, int col, Dir dir, int destRow, int destCol, Node goal) {
