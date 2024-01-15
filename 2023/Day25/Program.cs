@@ -1,4 +1,5 @@
-﻿#pragma warning disable CS8524
+﻿// Answer:  592171
+#pragma warning disable CS8524
 #pragma warning disable CS8509
 using System.Collections;
 using System.Data;
@@ -18,7 +19,7 @@ Stopwatch sw = Stopwatch.StartNew();
 
 
 Part1(lines);
-Part2(lines);
+//Part2(lines);
 
 Console.Out.WriteLine($"Finished in {sw.ElapsedMilliseconds}ms");
 
@@ -61,22 +62,36 @@ void Part1(string[] lines)
         penultimateNodeAdded = null;
         
         HashSet<Node> superset = new();
+        Dictionary<Node, int> supersetNeighbors = new();
         superset.Add(randomNode);
+        foreach (var neighbor in randomNode.Neighbors) {
+            supersetNeighbors.Add(neighbor.Key, neighbor.Value);
+        }
         while (true) {
             if (debug) Console.WriteLine($"Inner loop with superset count {superset.Count}");
 
-
-            var allSupersetNeighbors = superset.SelectMany(n => n.Neighbors)
-                .Where(neighbor => !superset.Contains(neighbor.Key));
-            if (!allSupersetNeighbors.Any()) {
+            if (supersetNeighbors.Count == 0) {
                 break;
             }
-            var largestWeightNeighbor = allSupersetNeighbors
-                .GroupBy(n => n.Key)
-                .MaxBy(g => g.Sum(n => n.Value))
+
+            var largestWeightNeighbor = supersetNeighbors
+                .MaxBy(n => n.Value)
                 .Key;
 
-            superset.Add(largestWeightNeighbor); 
+            superset.Add(largestWeightNeighbor);
+            if (!supersetNeighbors.Remove(largestWeightNeighbor)) {throw new Exception("aack");}
+
+            foreach (var neighbor in largestWeightNeighbor.Neighbors) {
+
+                if (!superset.Contains(neighbor.Key)) {
+                    if (supersetNeighbors.TryGetValue(neighbor.Key, out var existingWeight)) {
+                        supersetNeighbors[neighbor.Key] += existingWeight;
+                    } else {
+                        supersetNeighbors.Add(neighbor.Key, neighbor.Value);
+                    }
+                }
+                
+            }
             if (debug) Console.WriteLine($"Adding to superset: {largestWeightNeighbor.Name}");   
 
             penultimateNodeAdded = lastNodeAdded;
