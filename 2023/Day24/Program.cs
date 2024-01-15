@@ -84,46 +84,38 @@ void Part1(List<Hailstone> hailstones)
 void Part2(List<Hailstone> hailstones)
 {
 
-    var w = new long[3, 3] {
-        {1,2,3},
-        {7,8,10},
-        {4,5,6}
-    };
-    var wD  = Determinant(w);
+    BigInteger[,] m1;
+    BigInteger[] m2;
 
+    BigInteger vx0 = hailstones[0].Vx;
+    BigInteger vy0 = hailstones[0].Vy;
+    BigInteger vz0 = hailstones[0].Vz;
+    BigInteger px0 = hailstones[0].Px;
+    BigInteger py0 = hailstones[0].Py;
+    BigInteger pz0 = hailstones[0].Pz;
 
-    long[,] m1;
-    long[] m2;
+    BigInteger vx1 = hailstones[1].Vx;
+    BigInteger vy1 = hailstones[1].Vy;
+    BigInteger vz1 = hailstones[1].Vz;
+    BigInteger px1 = hailstones[1].Px;
+    BigInteger py1 = hailstones[1].Py;
+    BigInteger pz1 = hailstones[1].Pz;
 
-    var vx0 = hailstones[0].Vx;
-    var vy0 = hailstones[0].Vy;
-    var vz0 = hailstones[0].Vz;
-    var px0 = hailstones[0].Px;
-    var py0 = hailstones[0].Py;
-    var pz0 = hailstones[0].Pz;
+    BigInteger vx2 = hailstones[2].Vx;
+    BigInteger vy2 = hailstones[2].Vy;
+    BigInteger vz2 = hailstones[2].Vz;
+    BigInteger px2 = hailstones[2].Px;
+    BigInteger py2 = hailstones[2].Py;
+    BigInteger pz2 = hailstones[2].Pz;
 
-    var vx1 = hailstones[1].Vx;
-    var vy1 = hailstones[1].Vy;
-    var vz1 = hailstones[1].Vz;
-    var px1 = hailstones[1].Px;
-    var py1 = hailstones[1].Py;
-    var pz1 = hailstones[1].Pz;
+    BigInteger vx3 = hailstones[3].Vx;
+    BigInteger vy3 = hailstones[3].Vy;
+    BigInteger vz3 = hailstones[3].Vz;
+    BigInteger px3 = hailstones[3].Px;
+    BigInteger py3 = hailstones[3].Py;
+    BigInteger pz3 = hailstones[3].Pz;
 
-    var vx2 = hailstones[2].Vx;
-    var vy2 = hailstones[2].Vy;
-    var vz2 = hailstones[2].Vz;
-    var px2 = hailstones[2].Px;
-    var py2 = hailstones[2].Py;
-    var pz2 = hailstones[2].Pz;
-
-    var vx3 = hailstones[3].Vx;
-    var vy3 = hailstones[3].Vy;
-    var vz3 = hailstones[3].Vz;
-    var px3 = hailstones[3].Px;
-    var py3 = hailstones[3].Py;
-    var pz3 = hailstones[3].Pz;
-
-m1 = new long[6,6] {
+m1 = new BigInteger[6,6] {
 {vy0 - vy1,   vx1 - vx0,   0        ,    py1 - py0,   px0 - px1,   0,       },
 {vz0 - vz1,   0        ,   vx1 - vx0,    pz1 - pz0,   0        ,   px0 - px1},
 {vy0 - vy2,   vx2 - vx0,   0        ,    py2 - py0,   px0 - px2,   0        },
@@ -154,22 +146,22 @@ var c1 = CramerMatrix(m1, m2, 0);
 var c2 = CramerMatrix(m1, m2, 1);
 var c3 = CramerMatrix(m1, m2, 2);
 
-var det = Determinant(m1);
-var detC1 = Determinant(c1);
-var detC2 = Determinant(c2);
-var detC3 = Determinant(c3);
+var det = DeterminantBi(m1);
+var detC1 = DeterminantBi(c1);
+var detC2 = DeterminantBi(c2);
+var detC3 = DeterminantBi(c3);
 
 
 var px = detC1 / det;
 var py = detC2 / det;
 var pz = detC3 / det;
 
-Console.WriteLine($"{px},{py},{pz}");
+Console.WriteLine($"{px},{py},{pz} : {px+py+pz}");
 
 }
 
-long[,] CramerMatrix(long[,] m, long[] v, int index) {
-    var c1 = m.Clone() as long[,];
+BigInteger[,] CramerMatrix(BigInteger[,] m, BigInteger[] v, int index) {
+    var c1 = m.Clone() as BigInteger[,];
 
     for (int ii = 0; ii < m.GetLength(0); ii++) {
         c1[ii,index] = v[ii];
@@ -198,6 +190,37 @@ long Determinant(long[,] m) {
         }
 
         var det = Determinant(m2);
+        if (ii % 2 == 1) {
+            det *= -1;
+        }
+        result += det * m[0,ii];
+    }
+
+    return result;
+
+}
+
+
+BigInteger DeterminantBi(BigInteger[,] m) {
+
+    var n = m.GetLength(0);
+    if (n == 2) {
+        return m[0,0] * m[1,1] - m[0,1] * m[1,0];
+    }
+
+    BigInteger result = 0;
+    for(var ii = 0; ii < n; ii++) {
+
+        // Construct new matrix, leaving out row 0 and column i
+        var m2 = new BigInteger[n-1,n-1];
+
+        for (var jj = 0; jj < n-1; jj++) {
+            for (var kk = 0; kk < n-1; kk++) {
+                m2[jj,kk] = m[jj+1, kk + (kk >= ii ? 1 : 0)];
+            }
+        }
+
+        var det = DeterminantBi(m2);
         if (ii % 2 == 1) {
             det *= -1;
         }
