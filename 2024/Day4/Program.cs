@@ -79,7 +79,7 @@ void Part2(string[] lines)
 
     var list = new List<string>();
 
-    // Horizontal
+    // Down and Right, then Down and Left
     for (int r = 0; r < maxR - 2; r++) {
         for (int c = 0; c < maxC - 2; c++) {
             list.Add(new string([a[r,c], a[r+1,c+1],a[r+2,c+2],  a[r,c+2], a[r+1,c+1], a[r+2,c]]));
