@@ -5,7 +5,7 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
-using MoreLinq;
+//using MoreLinq;
 
 
 bool sample = false;
@@ -133,7 +133,7 @@ void Part2(string[] lines) {
             pagesInUpdate[page] = true;
         }
         var relevantRules = rules.Where(r => pagesInUpdate[r.after] && pagesInUpdate[r.before]).ToList();
-        var relevantRulesLookup = relevantRules.ToLookup(r => r.after, r => r.before);
+        var relevantRulesLookup = relevantRules.Select(r=> r.after).ToHashSet();
 
         var newUpdate = new List<int>();
         var numPagesInUpdate = update.Count;
@@ -145,7 +145,7 @@ void Part2(string[] lines) {
                     newUpdate.Add(page);
 
                     relevantRules = relevantRules.Where(r => r.before != page).ToList();
-                    relevantRulesLookup = relevantRules.ToLookup(r => r.after, r => r.before);
+                    relevantRulesLookup = relevantRules.Select(r=> r.after).ToHashSet();
 
                     update.Remove(page);
                     goto next;
