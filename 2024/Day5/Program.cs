@@ -133,7 +133,7 @@ void Part2(string[] lines) {
             pagesInUpdate[page] = true;
         }
         var relevantRules = rules.Where(r => pagesInUpdate[r.after] && pagesInUpdate[r.before]).ToList();
-        var relevantRulesLookup = relevantRules.Select(r=> r.after).ToHashSet();
+        var relevantRulesAfterSet = relevantRules.Select(r=> r.after).ToHashSet();
 
         var newUpdate = new List<int>();
         var numPagesInUpdate = update.Count;
@@ -141,11 +141,11 @@ void Part2(string[] lines) {
 
             // Find the page that's not after anything else in the rules
             foreach (var page in update) {
-                if (!relevantRulesLookup.Contains(page)) {
+                if (!relevantRulesAfterSet.Contains(page)) {
                     newUpdate.Add(page);
 
                     relevantRules = relevantRules.Where(r => r.before != page).ToList();
-                    relevantRulesLookup = relevantRules.Select(r=> r.after).ToHashSet();
+                    relevantRulesAfterSet = relevantRules.Select(r=> r.after).ToHashSet();
 
                     update.Remove(page);
                     goto next;
