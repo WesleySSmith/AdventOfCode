@@ -60,13 +60,10 @@ Console.Out.WriteLine($"Finished in {sw.ElapsedMilliseconds}ms");
 
 void Part1()
 {
-   var shortPath = ShortestPath1(board, new State(new RC(startRow, startCol), Dir.E, 0), (endRow, endCol));
+   var shortPath = ShortestPath1(board, new State(new RC(startRow, startCol), Dir.E), (endRow, endCol));
     
 
     Console.Out.WriteLine($"Part 1: {shortPath}");
-
-
-
 }
 
 
@@ -92,34 +89,34 @@ int ShortestPath1(char[,] board, State start, (int, int) end) {
             return dist[u];
         }
 
-        var neighbors = new List<State>();
+        var neighbors = new List<(State State, int TurnCost)>();
 
         // North
         if (dir != Dir.S && board[row-1, col] is '.' or 'E') {
-            neighbors.Add(new State(new RC(row - 1, col), Dir.N, dir == Dir.N ? 0 : 1000));
+            neighbors.Add((new State(new RC(row - 1, col), Dir.N), dir == Dir.N ? 0 : 1000));
         }
 
         // South
         if (dir != Dir.N && board[row+1, col] is '.' or 'E') {
-            neighbors.Add(new State(new RC(row + 1, col), Dir.S, dir == Dir.S ? 0 : 1000));
+            neighbors.Add((new State(new RC(row + 1, col), Dir.S), dir == Dir.S ? 0 : 1000));
         }
 
         // West
         if (dir != Dir.E && board[row, col-1] is '.' or 'E') {
-            neighbors.Add(new State(new RC(row, col - 1), Dir.W, dir == Dir.W ? 0 : 1000));
+            neighbors.Add((new State(new RC(row, col - 1), Dir.W), dir == Dir.W ? 0 : 1000));
         }
 
         // East
         if (dir != Dir.W && board[row, col+1] is '.' or 'E') {
-            neighbors.Add(new State(new RC(row, col + 1), Dir.E, dir == Dir.E ? 0 : 1000));
+            neighbors.Add((new State(new RC(row, col + 1), Dir.E), dir == Dir.E ? 0 : 1000));
         }
         
         foreach (var v in neighbors) {
             var alt = dist[u] + v.TurnCost + 1;
-            if (alt < (dist.TryGetValue(v, out var d) ? d : int.MaxValue)) {
-                dist[v] = alt;
-                if (Q.UnorderedItems.All(i => i.Element != v)) {
-                    Q.Enqueue(v, alt);
+            if (alt < (dist.TryGetValue(v.State, out var d) ? d : int.MaxValue)) {
+                dist[v.State] = alt;
+                if (Q.UnorderedItems.All(i => i.Element != v.State)) {
+                    Q.Enqueue(v.State, alt);
                 }
             }
         }
@@ -129,7 +126,7 @@ int ShortestPath1(char[,] board, State start, (int, int) end) {
 }
 
 void Part2(string[] lines) {
-    var shortPath = ShortestPath2(board, new State(new RC(startRow, startCol), Dir.E, 0), new RC(endRow, endCol));
+    var shortPath = ShortestPath2(board, new State(new RC(startRow, startCol), Dir.E), new RC(endRow, endCol));
 
     Console.Out.WriteLine($"Part 2: {shortPath}");
 
@@ -144,6 +141,7 @@ int ShortestPath2(char[,] board, State start, RC end) {
 
     Q.Enqueue(start, 0);
     dist[(start)] = 0;
+    prev.Add(start, []);
 
     while (Q.Count > 0) {
         var u = Q.Dequeue();
@@ -161,43 +159,42 @@ int ShortestPath2(char[,] board, State start, RC end) {
         }
 
 
-        var neighbors = new List<State>();
+        var neighbors = new List<(State State, int TurnCost)>();
 
         // North
         var rc = u.Pos with {Row = u.Pos.Row -1};
         if (dir != Dir.S && board[rc.Row, rc.Col] is '.' or 'E') {
-            neighbors.Add(new State(rc, Dir.N, dir == Dir.N ? 0 : 1000));
+            neighbors.Add((new State(rc, Dir.N), dir == Dir.N ? 0 : 1000));
         }
 
         // South
         rc = u.Pos with {Row = u.Pos.Row +1};
         if (dir != Dir.N && board[rc.Row, rc.Col] is '.' or 'E') {
-            neighbors.Add(new State(rc, Dir.S, dir == Dir.S ? 0 : 1000));
+            neighbors.Add((new State(rc, Dir.S), dir == Dir.S ? 0 : 1000));
         }
 
         // West
         rc = u.Pos with {Col = u.Pos.Col -1};
         if (dir != Dir.E && board[rc.Row, rc.Col] is '.' or 'E') {
-            neighbors.Add(new State(rc, Dir.W, dir == Dir.W ? 0 : 1000));
+            neighbors.Add((new State(rc, Dir.W), dir == Dir.W ? 0 : 1000));
         }
 
         // East
         rc = u.Pos with {Col = u.Pos.Col +1};
         if (dir != Dir.W && board[rc.Row, rc.Col] is '.' or 'E') {
-            neighbors.Add(new State(rc, Dir.E, dir == Dir.E ? 0 : 1000));
+            neighbors.Add((new State(rc, Dir.E), dir == Dir.E ? 0 : 1000));
         }
         
         foreach (var v in neighbors) {
             var alt = dist[u] + v.TurnCost + 1;
-            if (alt <= (dist.TryGetValue(v, out var d) ? d : int.MaxValue)) {
-                dist[v] = alt;
-                if (!prev.TryGetValue(v, out var prevList)) {
-                    prevList = [];
-                    prev[v] = prevList;
+            if (alt <= (dist.TryGetValue(v.State, out var d) ? d : int.MaxValue)) {
+                dist[v.State] = alt;
+                if (!prev.TryGetValue(v.State, out var prevList)) {
+                    prev[v.State] = prevList = [];
                 }
                 prevList.Add(u);
-                if (Q.UnorderedItems.All(i => i.Element != v)) {
-                    Q.Enqueue(v, alt);
+                if (Q.UnorderedItems.All(i => i.Element != v.State)) {
+                    Q.Enqueue(v.State, alt);
                 }
             }
         }
@@ -211,37 +208,29 @@ int ShortestPath2(char[,] board, State start, RC end) {
 
     HashSet<RC> hashmap = [end];
 
-    Stack<(State State, List<RC> Path)> stack = new();
+    Stack<State> stack = new();
 
-    stack.Push((best.Key, new List<RC>()));
+    stack.Push(best.Key);
 
     while (stack.Count > 0) {
         var n = stack.Pop();
-        if (n.State.Pos == start.Pos) {
-            foreach (var n2 in n.Path) {
-                hashmap.Add(n2);
-            }
-        } else {
-            foreach(var prevN in prev[n.State]) {
-                stack.Push((prevN, [prevN.Pos, .. n.Path]));
-            }
+        hashmap.Add(n.Pos);
+        foreach(var prevN in prev[n]) {
+            stack.Push(prevN);
         }
     }  
-
     return hashmap.Count;
 }
 
 record State {
 
-    public State(RC pos, Dir dir, int turnCost)
+    public State(RC pos, Dir dir)
     {
         Pos = pos;
         Dir = dir;
-        TurnCost = turnCost;
     }
     public RC Pos;
     public Dir Dir;
-    public int TurnCost;
 }
 enum Dir: byte {
     N,
