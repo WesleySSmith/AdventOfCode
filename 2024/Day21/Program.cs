@@ -8,7 +8,7 @@ using System.Text.RegularExpressions;
 //using MoreLinq;
 using MoreLinq;
 
-bool sample = false;
+bool sample = true;
 
 string[] lines = File.ReadAllLines(sample ? "sample.txt" : "input.txt");
 //Console.Out.WriteLine($"Read {lines.Length} lines from {lines.First()} to {lines.Last()}");
@@ -72,26 +72,27 @@ Console.Out.WriteLine($"Finished in {sw.ElapsedMilliseconds}ms");
 void Part1(string[] lines)
 {
     var acc = 0;
-    foreach (var line in lines) {
+    foreach (var line in lines.Skip(5)) {
+        Console.WriteLine();
         Console.WriteLine(line);
         var solved = Solve1(keypadD, keypadBoard, line.ToArray());
-        Console.WriteLine(new string([.. solved]));
+        Console.WriteLine($"{solved.Count()}: {new string([.. solved])}");
 
         var solved2 = Solve1(dirKeypadD, dirKeypadBoard, solved);
-        Console.WriteLine(new string([.. solved2]));
+        Console.WriteLine($"{solved2.Count()}: {new string([.. solved2])}");
 
         var solved3 = Solve1(dirKeypadD, dirKeypadBoard, solved2);
-        Console.WriteLine(new string([.. solved3]));
+        Console.WriteLine($"{solved3.Count()}: {new string([.. solved3])}");
 
         acc += solved3.Count * int.Parse(line[..^1]);
     }
     Console.Out.WriteLine($"Part 1: {acc}");
 }
 
-List<char> ComputeMove1(Dictionary<char, RC> map, bool[,] board, char c1, char c2) {
+List<List<char>> ComputeMove1(Dictionary<char, RC> map, bool[,] board, char c1, char c2) {
     var paths = ShortestPath1(board, map[c1], map[c2]);
 
-    var bestPath = paths.Select(path => {
+    var potentialPaths = paths.Select(path => {
         var potentialPath = path.Pairwise((p1, p2) => {
             if (p1.Row > p2.Row) return '^';
             if (p1.Row < p2.Row) return 'v';
@@ -111,16 +112,61 @@ List<char> ComputeMove1(Dictionary<char, RC> map, bool[,] board, char c1, char c
 
         return (potentialPath, score);
     })
-    .OrderBy(p => p.score)
-    .First();
+    .OrderBy(p => p.score);
+
+    var bestScore = potentialPaths.First().score;
+
+    return potentialPaths.TakeWhile(p => p.score == bestScore).Select(p => p.potentialPath).ToList();
     
-    return bestPath.potentialPath;
-    }
+}
 
 
 IList<char> Solve1(Dictionary<char, RC> map, bool[,] board, IList<char> line) {
-    var result = line.Prepend('A').Pairwise((c1, c2) => ComputeMove1(map, board, c1, c2)).SelectMany(a => a).ToList();
-    return result;
+
+
+    var possibleMovesAtEachStep = line.Prepend('A').Pairwise((c1, c2) => ComputeMove1(map, board, c1, c2)).ToList();
+    
+    var x = possibleMovesAtEachStep.Where(moves => moves.Count > 1 && moves.Any(m => m.First() == 'A')).ToList();
+    if (x.Count > 0)
+    {
+        Console.Out.WriteLine(x.Count);
+    }
+
+
+
+    List<List<char>> allPossiblePaths = [];
+    Stack<(int, List<char>)> stack = new();
+    stack.Push((-1, []));
+
+    while (stack.Count > 0) {
+        var n = stack.Pop();
+
+        var idx = n.Item1 + 1;
+        if (idx > possibleMovesAtEachStep.Count -1) {
+            allPossiblePaths.Add(n.Item2);
+            continue;
+        }
+
+        var prevs = possibleMovesAtEachStep[idx];
+
+        if (prevs.Count == 1) {
+            n.Item2.AddRange(prevs[0]);
+            stack.Push((idx, n.Item2));
+            continue;
+        }
+
+        foreach(var prevN in prevs) {
+            List<char> newList = [..n.Item2, ..prevN];
+            stack.Push((idx, newList));
+        }
+    } 
+
+    
+
+    return possibleMovesAtEachStep.Select(moves => moves.Last()).SelectMany(c => c).ToList();
+    
+    // .SelectMany(a => a).ToList();
+    // return result;
 }
 
 
