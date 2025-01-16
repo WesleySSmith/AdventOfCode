@@ -8,9 +8,9 @@ using System.Text.RegularExpressions;
 //using MoreLinq;
 using MoreLinq;
 
-bool sample = true;
+bool sample = false;
 
-string[] lines = File.ReadAllLines(sample ? "sample.txt" : "input.txt");
+string[] lines = File.ReadAllLines(sample ? "sample.txt" : "input.txt").ToArray();
 //Console.Out.WriteLine($"Read {lines.Length} lines from {lines.First()} to {lines.Last()}");
 
 
@@ -64,33 +64,59 @@ foreach (var kvp in dirKeypadD) {
     dirKeypadBoard[rc.Row, rc.Col] = true;
 }
 
-Part1(lines);
-//Part2(lines);
+Dictionary<(char, char, int), long> R2Memo = new();
 
+sw.Restart();
+Part1();
+Console.Out.WriteLine($"Finished in {sw.ElapsedMilliseconds}ms");
+sw.Restart();
+Part2();
 Console.Out.WriteLine($"Finished in {sw.ElapsedMilliseconds}ms");
 
-void Part1(string[] lines)
+void Part1()
 {
     var acc = 0;
-    foreach (var line in lines.Skip(5)) {
-        Console.WriteLine();
-        Console.WriteLine(line);
-        var solved = Solve1(keypadD, keypadBoard, line.ToArray());
-        Console.WriteLine($"{solved.Count()}: {new string([.. solved])}");
-
-        var solved2 = Solve1(dirKeypadD, dirKeypadBoard, solved);
-        Console.WriteLine($"{solved2.Count()}: {new string([.. solved2])}");
-
-        var solved3 = Solve1(dirKeypadD, dirKeypadBoard, solved2);
-        Console.WriteLine($"{solved3.Count()}: {new string([.. solved3])}");
-
-        acc += solved3.Count * int.Parse(line[..^1]);
+    foreach (var line in lines) {
+       acc += Complexity1(line);
     }
     Console.Out.WriteLine($"Part 1: {acc}");
 }
 
-List<List<char>> ComputeMove1(Dictionary<char, RC> map, bool[,] board, char c1, char c2) {
-    var paths = ShortestPath1(board, map[c1], map[c2]);
+int Complexity1(string line) {
+    Console.WriteLine();
+    Console.WriteLine(line);
+    var possiblePathsLevel0 = Solve1(keypadD, keypadBoard, line.ToArray());
+
+    var totalList = new List<List<char>>();
+    foreach (var possiblePath in possiblePathsLevel0) {
+        totalList.AddRange(R(possiblePath, 1));
+    }
+    
+    var bestPath = totalList.OrderBy(l => l.Count).First();
+    var shortestLen = bestPath.Count();
+    var score = shortestLen * int.Parse(line[..^1]);
+
+    Console.WriteLine($"Best path for {line} is {string.Join("", bestPath)} (len: {shortestLen}) for score {score}");
+
+    return score;
+}
+
+List<List<char>> R(List<char> line, int depth) {
+    
+    var possiblePaths = Solve1(dirKeypadD, dirKeypadBoard, line);
+    if (depth == 2) {
+        return possiblePaths;
+    } else {
+        var totalList = new List<List<char>>();
+        foreach (var possiblePath in possiblePaths) {
+            totalList.AddRange(R(possiblePath, depth + 1));
+        }
+        return totalList;
+    }
+}
+
+List<List<char>> ComputeAllGoodPathsBetweenTwoPositions1(Dictionary<char, RC> map, bool[,] board, char c1, char c2) {
+    var paths = AllShortestPaths1(board, map[c1], map[c2]);
 
     var potentialPaths = paths.Select(path => {
         var potentialPath = path.Pairwise((p1, p2) => {
@@ -101,6 +127,9 @@ List<List<char>> ComputeMove1(Dictionary<char, RC> map, bool[,] board, char c1, 
             throw new Exception("Unexpected 1");
         }).Append('A').ToList();
         
+        // A path like ^^^>>> is better than ^>^>^>, because it's expensive
+        // for the upper robot to switch to a different key.
+        // So, only return paths with the fewest switches of characters.
         var score = 0;
         char last = ' ';
         for (int i = 0; i < potentialPath.Count; i++) {
@@ -121,19 +150,10 @@ List<List<char>> ComputeMove1(Dictionary<char, RC> map, bool[,] board, char c1, 
 }
 
 
-IList<char> Solve1(Dictionary<char, RC> map, bool[,] board, IList<char> line) {
+List<List<char>> Solve1(Dictionary<char, RC> map, bool[,] board, IList<char> line) {
 
-
-    var possibleMovesAtEachStep = line.Prepend('A').Pairwise((c1, c2) => ComputeMove1(map, board, c1, c2)).ToList();
+    var possibleMovesAtEachStep = line.Prepend('A').Pairwise((c1, c2) => ComputeAllGoodPathsBetweenTwoPositions1(map, board, c1, c2)).ToList();
     
-    var x = possibleMovesAtEachStep.Where(moves => moves.Count > 1 && moves.Any(m => m.First() == 'A')).ToList();
-    if (x.Count > 0)
-    {
-        Console.Out.WriteLine(x.Count);
-    }
-
-
-
     List<List<char>> allPossiblePaths = [];
     Stack<(int, List<char>)> stack = new();
     stack.Push((-1, []));
@@ -161,17 +181,12 @@ IList<char> Solve1(Dictionary<char, RC> map, bool[,] board, IList<char> line) {
         }
     } 
 
-    
-
-    return possibleMovesAtEachStep.Select(moves => moves.Last()).SelectMany(c => c).ToList();
-    
-    // .SelectMany(a => a).ToList();
-    // return result;
+    return allPossiblePaths;
 }
 
 
 
-List<List<RC>> ShortestPath1(bool[,] board, RC start, RC end) {
+List<List<RC>> AllShortestPaths1(bool[,] board, RC start, RC end) {
 
     var minRow = 0;
     var maxRow = board.GetLength(0) -1;
@@ -326,9 +341,87 @@ void PrintMapTest(bool[,] map) {
 
 void Part2()
 {
-  
+  var acc = 0L;
+    foreach (var line in lines) {
+       acc += Complexity2(line);
+    }
+    Console.Out.WriteLine($"Part 2: {acc}");
 }
 
+
+long Complexity2(string line) {
+
+    var shortestLen = long.MaxValue;
+    var possibleKeyboardPaths = Solve1(keypadD, keypadBoard, line.ToList());
+    foreach (var possibleKeyboardPath in possibleKeyboardPaths) {
+
+        var thisScore = possibleKeyboardPath.Prepend('A').Pairwise((a,b) => {
+            return R2(a, b, 25);
+        }).Sum();
+
+        //Console.WriteLine($"Best path for {string.Join("", possibleKeyboardPath)} is (len: {thisScore})");
+        shortestLen = Math.Min(shortestLen, thisScore);
+    };
+    
+    var score = shortestLen * int.Parse(line[..^1]);
+
+    Console.WriteLine($"Best path for {line} is (len: {shortestLen}) for score {score}");
+
+    return score;
+}
+
+
+long R2(char c1, char c2, int level) {
+    
+    var memoKey = (c1, c2, level);
+    if (R2Memo.TryGetValue(memoKey, out var memoResult)) {
+        return memoResult;
+    }
+
+    var paths = ComputeAllGoodPathsBetweenTwoPositions1(dirKeypadD, dirKeypadBoard, c1, c2);
+
+    if (level == 1) {
+        return paths.First().Count;
+    }
+
+    var best = long.MaxValue;
+    foreach (var path in paths) {
+
+        var total = path.Prepend('A').Pairwise((a,b) => {
+            return R2(a, b, level -1);
+        }).Sum();
+
+        best = Math.Min(best, total);
+    }
+
+    R2Memo.Add(memoKey, best);
+
+    return best;
+
+    // //var memoKey = (new String(line.ToArray()), level);
+    // // if (R2Memo.TryGetValue(memoKey, out var memoResult)) {
+    // //     //Console.WriteLine($"Cache Hit: {memoKey}: {memoResult}");
+    // //     return memoResult;
+    // // } else {
+    // //     //Console.WriteLine($"Cache Miss: {memoKey}");
+    // // }
+
+    // List<List<char>> possiblePaths = level == 3 ? [line] : Solve1(dirKeypadD, dirKeypadBoard, line);
+
+    // var bestScore = int.MaxValue;
+    // foreach (var possiblePath in possiblePaths) {
+
+    //     var score = possiblePath.Prepend('A').Pairwise((p1, p2) => {
+    //         return R2(new List<char>() {p1, p2}, level-1);
+    //     }).Sum();
+
+    //     bestScore = Math.Min(bestScore, score);
+    // }
+
+    // //R2Memo.Add(memoKey, bestScore);
+    // Console.WriteLine($"R2 result: {memoKey}: {bestScore}");
+    // return bestScore;
+}
 
 record RC(int Row, int Col);
 
